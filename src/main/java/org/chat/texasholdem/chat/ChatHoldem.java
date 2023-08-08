@@ -106,6 +106,7 @@ public class ChatHoldem {
             // 请求成功，用结果合成第二次prompt
             if (chatHoldemAns != null && chatHoldemAns.length() >= 20) {
                 holdemPrompt.setCombinedPrompt(holdemPromptZeroShotCoT.secondPrompt(chatHoldemAns));
+                break;
             }
         }
 

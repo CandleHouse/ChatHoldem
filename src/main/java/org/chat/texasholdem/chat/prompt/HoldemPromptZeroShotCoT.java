@@ -46,8 +46,10 @@ public class HoldemPromptZeroShotCoT {
                             "以及所有玩家行动历史记录(playerMoveHistoryList)。\n";
 
         String zeroShotCoT = "Let's think step by step，" +
-                            "首先，你需要根据你的手牌(yourHand)和公共牌(boardCards)来判断你当前的最大牌型；" +
-                            "然后，根据所有玩家行动历史记录(playerMoveHistoryList)，推测其他玩家的牌型，是否在咋唬；" +
+                            "首先，你需要根据你的手牌(yourHand)和公共牌(boardCards)来判断你当前的最大牌型," +
+                            "如果处于pre-flop没有公共牌时，最好选择跟注call，不判断最大牌型；" +
+                            "然后，根据所有玩家行动历史记录(playerMoveHistoryList)，推测其他玩家的牌型，是否在咋唬，" +
+                            "不考虑历史记录中大小盲行动，因为大小盲是强制下注；" +
                             "接着，根据当前卡池下注的总共筹码数(potSize)，你的位置(yourPosition)，当前轮次(bettingRound)，" +
                             "等其他信息作出综合分析，判断你的胜率；" +
                             "最后，你需要根据你当前的胜率来判断你当前的行动，是否加注、跟牌或弃牌。\n";
@@ -76,7 +78,7 @@ public class HoldemPromptZeroShotCoT {
                             "必须小于等于" + this.yourStack + "，" +
                             "弃牌时请将该属性赋值整数0；" +
                             "reason属性，总结思考过程，解释行动原因，使用中文；" +
-                            "speak发表迷惑对手的语言，风趣幽默，千万不要透露自己的牌面信息，使用中文。\n";
+                            "speak发表迷惑对手的语言，风趣幽默，千万千万不要透露自己的牌面信息，使用中文。\n";
 
          return this.firstPrompt() + thinking + chatHoldemAns + gameRules + customOutput;
     }
