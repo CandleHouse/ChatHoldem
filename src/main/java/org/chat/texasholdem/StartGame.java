@@ -11,8 +11,9 @@ public class StartGame {
         int playerNum = 6;
         boolean goldFinger = true;
         GameLevel gameLevel = GameLevel.NORMAL;
+        boolean allPromptsPrint = false;
 
-        MainFlow mainFlow = new MainFlow(playerNum, goldFinger, gameLevel);
+        MainFlow mainFlow = new MainFlow(playerNum, goldFinger, gameLevel, allPromptsPrint);
         mainFlow.play();
     }
 }
