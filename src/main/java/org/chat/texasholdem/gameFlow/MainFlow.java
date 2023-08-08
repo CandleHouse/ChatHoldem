@@ -20,6 +20,7 @@ public class MainFlow {
     private int smallBlind;
     private boolean goldFinger;
     private GameLevel gameLevel;
+    private boolean allPromptsPrint;
 
     private Map<String, Integer> playerStacks;  // 时刻更新的玩家筹码
     private Map<String, Integer> playerStacksUpdatedOnSession;  // 每局session更新的玩家筹码
@@ -29,10 +30,11 @@ public class MainFlow {
     private Dealer dealer;
     private CommonUtils commonUtils = new CommonUtils();
 
-    public MainFlow(int playerNum, boolean goldFinger, GameLevel gameLevel) {
+    public MainFlow(int playerNum, boolean goldFinger, GameLevel gameLevel, boolean allPromptsPrint) {
         this.playerNum = playerNum;
         this.goldFinger = goldFinger;
         this.gameLevel = gameLevel;
+        this.allPromptsPrint = allPromptsPrint;
         this.initCounter = 2000;
         this.bigBlind = 20;
         this.smallBlind = 10;
@@ -327,9 +329,9 @@ public class MainFlow {
                     this.bigBlind, this.smallBlind, playerStatus
             );
             if (GameLevel.EASY.equals(this.gameLevel))
-                chatHoldemAns = new ChatHoldem().chatHoldemZeroShot(prompt);
+                chatHoldemAns = new ChatHoldem().chatHoldemZeroShot(prompt, this.allPromptsPrint);
             else
-                chatHoldemAns = new ChatHoldem().chatHoldemZeroShotCoT(prompt);
+                chatHoldemAns = new ChatHoldem().chatHoldemZeroShotCoT(prompt, this.allPromptsPrint);
 
             if (this.goldFinger) {
                 String reason = (String) chatHoldemAns.get("reason");
@@ -382,6 +384,7 @@ public class MainFlow {
                 if (this.dealer.getPlayerList() == null) break;  // 所有玩家都弃牌，session结束
                 // round结束前，剩余玩家筹码拉齐
                 nextPlayerIndex = findNextPlayerIndex(nextPlayerIndex-1);  // 重试一次，防止最后一个玩家弃牌
+                if (nextPlayerIndex == -1) break;  // 所有玩家都弃牌，session结束
                 Player alignPlayer = this.getMaxAmountFirstPlayer(nextPlayerIndex-1);
                 if (this.allPlayerListUpdatedOnSession.get(nextPlayerIndex).getPlayerName().equals(alignPlayer.getPlayerName()))
                     continue;  // 所有人都拉齐了，不需要再拉齐

@@ -19,12 +19,14 @@ public class ChatHoldem {
     /**
      * 一次询问获得结果
      */
-    public JSONObject chatHoldemZeroShot(HoldemPrompt holdemPrompt) {
+    public JSONObject chatHoldemZeroShot(HoldemPrompt holdemPrompt, boolean allPromptsPrint) {
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Cookie", Cookie);
 
         JSONObject jsonBody = new JSONObject();
         jsonBody.put("text", holdemPrompt.getCombinedPrompt());
+        if (allPromptsPrint)
+            System.out.println(holdemPrompt.getCombinedPrompt());
 
         JSONObject res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
 
@@ -75,7 +77,7 @@ public class ChatHoldem {
     /**
      * 一次询问 + chain of thoughts 获得结果
      */
-    public JSONObject chatHoldemZeroShotCoT(HoldemPrompt holdemPrompt) {
+    public JSONObject chatHoldemZeroShotCoT(HoldemPrompt holdemPrompt, boolean allPromptsPrint) {
         HoldemPromptZeroShotCoT holdemPromptZeroShotCoT = new HoldemPromptZeroShotCoT(holdemPrompt);
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Cookie", Cookie);
@@ -96,18 +98,18 @@ public class ChatHoldem {
             }
             // 请求成功，返回正忙
             chatHoldemAns = res.getJSONObject("httpResponseBody").getJSONObject("data").getString("chatgpt");
-            if (chatHoldemAns == null) {
+            if (chatHoldemAns == null || (chatHoldemAns != null && chatHoldemAns.length() < 20)) {
                 System.out.println("chatHoldemAns is busy, retrying...");
                 res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
                 continue;
             }
             // 请求成功，用结果合成第二次prompt
-            if (chatHoldemAns != null) {
+            if (chatHoldemAns != null && chatHoldemAns.length() >= 20) {
                 holdemPrompt.setCombinedPrompt(holdemPromptZeroShotCoT.secondPrompt(chatHoldemAns));
             }
         }
 
-        return chatHoldemZeroShot(holdemPrompt);
+        return chatHoldemZeroShot(holdemPrompt, allPromptsPrint);
     }
 
     /**

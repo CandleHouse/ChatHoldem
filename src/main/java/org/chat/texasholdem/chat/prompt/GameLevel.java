@@ -5,8 +5,8 @@ package org.chat.texasholdem.chat.prompt;
  */
 public enum GameLevel {
     EASY(1),
-    NORMAL(2),
-    HARD(3);
+    NORMAL(2);
+//    HARD(3);
 
     private Integer level;
 

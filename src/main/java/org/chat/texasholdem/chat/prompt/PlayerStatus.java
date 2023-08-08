@@ -3,6 +3,7 @@ package org.chat.texasholdem.chat.prompt;
 import com.alibaba.fastjson.JSONObject;
 import org.chat.texasholdem.judge.entity.Card;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,7 +17,7 @@ import lombok.Setter;
 @Setter
 public class PlayerStatus {
     private String playerName;
-    private List<Card> yourHand;
+    private List<String> yourHand;
     private List<Card> boardCards;
     private int potSize;
     private Map<String, Integer> playerStacks;
@@ -29,7 +30,7 @@ public class PlayerStatus {
                         int potSize, Map<String, Integer> playerStacks, String bettingRound,
                         String yourPosition, List<PlayerMoveHistory> playerMoveHistoryList) {
         this.playerName = playerName;
-        this.yourHand = yourHand;
+        this.yourHand = this.specifyYourHand(yourHand);
         this.boardCards = boardCards;
         this.potSize = potSize;
         this.playerStacks = playerStacks;
@@ -49,5 +50,47 @@ public class PlayerStatus {
                 maxAmount = playerMoveHistory.getAmount();
         }
         return maxAmount;
+    }
+
+    public List<String> specifyYourHand(List<Card> yourHand) {
+        List<String> yourHandStr = new ArrayList<>();
+        for (Card card : yourHand) {
+            String cardStr = "一张";
+
+            switch (card.getSuit().getName()) {
+                case "S":
+                    cardStr += "黑桃";
+                    break;
+                case "H":
+                    cardStr += "红心";
+                    break;
+                case "C":
+                    cardStr += "梅花";
+                    break;
+                case "D":
+                    cardStr += "方块";
+                    break;
+            }
+            switch (card.getRank()) {
+                case CARD_ACE:
+                    cardStr += "A";
+                    break;
+                case CARD_KING:
+                    cardStr += "K";
+                    break;
+                case CARD_QUEUE:
+                    cardStr += "Q";
+                    break;
+                case CARD_JACK:
+                    cardStr += "J";
+                    break;
+                default:
+                    cardStr += card.getRank().getNumber();
+                    break;
+            }
+            yourHandStr.add(cardStr);
+        }
+
+        return yourHandStr;
     }
 }
