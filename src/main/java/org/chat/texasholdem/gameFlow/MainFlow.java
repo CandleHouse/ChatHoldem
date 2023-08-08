@@ -2,6 +2,7 @@ package org.chat.texasholdem.gameFlow;
 
 import com.alibaba.fastjson.JSONObject;
 import org.chat.texasholdem.chat.ChatHoldem;
+import org.chat.texasholdem.chat.prompt.GameLevel;
 import org.chat.texasholdem.chat.prompt.HoldemPrompt;
 import org.chat.texasholdem.chat.prompt.PlayerMoveHistory;
 import org.chat.texasholdem.chat.prompt.PlayerStatus;
@@ -18,6 +19,7 @@ public class MainFlow {
     private int bigBlind;
     private int smallBlind;
     private boolean goldFinger;
+    private GameLevel gameLevel;
 
     private Map<String, Integer> playerStacks;  // 时刻更新的玩家筹码
     private Map<String, Integer> playerStacksUpdatedOnSession;  // 每局session更新的玩家筹码
@@ -27,12 +29,13 @@ public class MainFlow {
     private Dealer dealer;
     private CommonUtils commonUtils = new CommonUtils();
 
-    public MainFlow(int playerNum, boolean goldFinger) {
+    public MainFlow(int playerNum, boolean goldFinger, GameLevel gameLevel) {
         this.playerNum = playerNum;
+        this.goldFinger = goldFinger;
+        this.gameLevel = gameLevel;
         this.initCounter = 2000;
         this.bigBlind = 20;
         this.smallBlind = 10;
-        this.goldFinger = goldFinger;
 
         playerStacks = new HashMap<>();
         playerMoveHistoryListUpdatedOnSession = new ArrayList<>();
@@ -73,10 +76,18 @@ public class MainFlow {
             String yourPosition = commonUtils.getYourPosition(playerIndex, smallBlindIndex, bigBlindIndex);
             if (yourPosition == null)
                 ;
-            else if (yourPosition.equals("small blind"))
+            else if (yourPosition.equals("small blind")) {
                 this.playerStacks.put(playerName, this.playerStacks.get(playerName) - this.smallBlind);
-            else if (yourPosition.equals("big blind"))
+                this.playerMoveHistoryListUpdatedOnSession.add(
+                        new PlayerMoveHistory(playerName, null, "small blind", this.smallBlind)
+                );
+            }
+            else if (yourPosition.equals("big blind")) {
                 this.playerStacks.put(playerName, this.playerStacks.get(playerName) - this.bigBlind);
+                this.playerMoveHistoryListUpdatedOnSession.add(
+                        new PlayerMoveHistory(playerName, null, "big blind", this.bigBlind)
+                );
+            }
         }
 
         this.dealer.board.setPotSize(this.smallBlind + this.bigBlind);
@@ -134,7 +145,7 @@ public class MainFlow {
         // 更新底池、玩家筹码、玩家行动历史
         this.dealer.board.setPotSize(
                 this.dealer.board.getPotSize() + playerAmount -
-                        (this.playerStacksUpdatedOnSession.get(playerName) - this.playerStacks.get(playerName))
+                (this.playerStacksUpdatedOnSession.get(playerName) - this.playerStacks.get(playerName))
         );
         this.playerStacks.put(playerName, this.playerStacksUpdatedOnSession.get(playerName) - playerAmount);
         this.playerMoveHistoryListUpdatedOnSession.add(
@@ -184,7 +195,7 @@ public class MainFlow {
         Iterator<Player> iterator = this.allPlayerListUpdatedOnSession.iterator();  // 检查玩家筹码
         while (iterator.hasNext()) {
             Player player = iterator.next(); player.dropCards();  // 清空玩家手牌
-            if (this.playerStacks.get(player.getPlayerName()) == 0) {
+            if (this.playerStacks.get(player.getPlayerName()) <= 0) {
                 iterator.remove(); this.playerNum--;
                 System.out.println("玩家" + player.getPlayerName() + "已淘汰");
             }
@@ -195,6 +206,31 @@ public class MainFlow {
         this.dealer.board.setPotSize(0);  // 初始化底池
     }
 
+    public int findNextPlayerIndex(int startPlayerIndex) {
+        for (int i = 0; i < (this.playerNum+1); i++) {
+            int nextPlayerIndex = (startPlayerIndex + i + 1) % (this.playerNum+1);
+            Player nextPlayer = this.allPlayerListUpdatedOnSession.get(nextPlayerIndex);
+            if (this.dealer.getPlayerList().contains(nextPlayer))
+                return nextPlayerIndex;
+        }
+        return -1;
+    }
+
+    public Player getMaxAmountFirstPlayer(int startPlayerIndex) {
+        int maxAmount = this.commonUtils.getMaxAmount(this.playerMoveHistoryListUpdatedOnSession);
+        for (int i = 0; i < (this.playerNum+1); i++) {
+            int nextPlayerIndex = (startPlayerIndex + i + 1) % (this.playerNum+1);
+            Player nextPlayer = this.allPlayerListUpdatedOnSession.get(nextPlayerIndex);
+
+            int playerAmount = playerStacksUpdatedOnSession.get(nextPlayer.getPlayerName()) -
+                               playerStacks.get(nextPlayer.getPlayerName());
+            if (playerAmount == maxAmount)
+                return nextPlayer;
+        }
+
+        return null;
+    }
+
     public void cleanFoldPlayers() {
         for (String playerName: this.foldPlayerNameList) {
             this.dealer.playerFold(playerName);
@@ -202,15 +238,27 @@ public class MainFlow {
         this.foldPlayerNameList.clear();
     }
 
-    public void printRoundPlayers(String playerName) {
-        String playerList = "[" + (this.playerNum+1) + " Players]: ";
+    public void printRoundPlayers(String playerName, int smallBlindIndex, int bigBlindIndex) {
+        StringBuffer playerList = new StringBuffer("[" + (this.playerNum+1) + " Players]: ");
         for (Player player : this.dealer.getPlayerList()) {
-            if (player.getPlayerName().equals(playerName)) {
-                String playerNameHighlight = commonUtils.getColoredString(playerName, 33, 1);
-                playerList += "{" + playerNameHighlight + "} ";
-            }
+            String coloredPlayerName = "";
+            // 高亮大小盲注
+            int playerIndex = this.getPlayerIndexOnSession(player);
+            String yourPosition = commonUtils.getYourPosition(playerIndex, smallBlindIndex, bigBlindIndex);
+            if (yourPosition == null)
+                coloredPlayerName = player.getPlayerName();
+            else if (yourPosition.equals("small blind"))
+                coloredPlayerName = commonUtils.getColoredString(player.getPlayerName(), 34, 4);
+            else if (yourPosition.equals("big blind"))
+                coloredPlayerName = commonUtils.getColoredString(player.getPlayerName(), 33, 4);
+
+            // 高亮当前玩家
+            if (player.getPlayerName().equals(playerName))
+                coloredPlayerName = "{" + commonUtils.getColoredString(coloredPlayerName, 33, 1, 95) + "} ";
             else
-                playerList += player.getPlayerName() + " ";
+                coloredPlayerName = coloredPlayerName + " ";
+
+            playerList.append(coloredPlayerName);
         }
         System.out.println(playerList);
     }
@@ -264,7 +312,7 @@ public class MainFlow {
             System.out.println("  剩余筹码：" + playerStackHighlight);
         }
 
-        String playerAction = ""; int playerAmount = -1;
+        String playerAction = ""; int playerAmount = -1; JSONObject chatHoldemAns = null;
         if (!roundCall) {
             // chatHoldem AI
             PlayerStatus playerStatus = new PlayerStatus(
@@ -278,7 +326,10 @@ public class MainFlow {
                     this.playerNum, this.playerStacksUpdatedOnSession.get(player.getPlayerName()),
                     this.bigBlind, this.smallBlind, playerStatus
             );
-            JSONObject chatHoldemAns = new ChatHoldem().chatHoldemAction(prompt.getCombinedPrompt());
+            if (GameLevel.EASY.equals(this.gameLevel))
+                chatHoldemAns = new ChatHoldem().chatHoldemZeroShot(prompt);
+            else
+                chatHoldemAns = new ChatHoldem().chatHoldemZeroShotCoT(prompt);
 
             if (this.goldFinger) {
                 String reason = (String) chatHoldemAns.get("reason");
@@ -306,7 +357,8 @@ public class MainFlow {
             int button = session++;
             int smallBlindIndex = (button + 1) % (this.playerNum+1);
             int bigBlindIndex = (button + 2) % (this.playerNum+1);
-            this.stackUpdatedByPosition(smallBlindIndex, bigBlindIndex);
+            int nextPlayerIndex = (button + 3) % (this.playerNum+1);
+            this.stackUpdatedByPosition(smallBlindIndex, bigBlindIndex);  // 更新大小盲筹码与起始玩家位置无关
             int round = 0;
 
             for (; round < Constants.TOTAL_ROUND; round++) {
@@ -315,8 +367,10 @@ public class MainFlow {
 
                 System.out.println("=======【 Round " + (round + 1) + " 】=======");
                 for (int i = 0; i < this.dealer.getPlayerList().size(); i++) {
-                    Player player = this.dealer.getPlayerList().get(i);
-                    printRoundPlayers(player.getPlayerName());
+                    Player player = this.allPlayerListUpdatedOnSession.get(nextPlayerIndex);
+                    nextPlayerIndex = findNextPlayerIndex(nextPlayerIndex);
+
+                    printRoundPlayers(player.getPlayerName(), smallBlindIndex, bigBlindIndex);
                     int playerIndex = this.getPlayerIndexOnSession(player);
 
                     if (player.getPlayerName().equals("Me"))
@@ -325,37 +379,36 @@ public class MainFlow {
                         playerTurn(round, playerIndex, player, smallBlindIndex, bigBlindIndex, false);
                 }
                 this.cleanFoldPlayers();  // Dealer清除round内所有弃牌玩家
-
+                if (this.dealer.getPlayerList() == null) break;  // 所有玩家都弃牌，session结束
                 // round结束前，剩余玩家筹码拉齐
-                Player alignPlayer = commonUtils.getMaxAmountFirstPlayer(
-                        this.dealer.getPlayerList(), this.playerStacks,
-                        this.playerStacksUpdatedOnSession,
-                        this.playerMoveHistoryListUpdatedOnSession
-                );
-                if (this.dealer.getPlayerList().get(0).getPlayerName().equals(alignPlayer.getPlayerName()))
+                nextPlayerIndex = findNextPlayerIndex(nextPlayerIndex-1);  // 重试一次，防止最后一个玩家弃牌
+                Player alignPlayer = this.getMaxAmountFirstPlayer(nextPlayerIndex-1);
+                if (this.allPlayerListUpdatedOnSession.get(nextPlayerIndex).getPlayerName().equals(alignPlayer.getPlayerName()))
                     continue;  // 所有人都拉齐了，不需要再拉齐
 
                 System.out.println("=======【 Round " + (round + 1) + "筹码拉齐 】=======");
                 for (int i = 0; i < this.dealer.getPlayerList().size(); i++) {
-                    Player player = this.dealer.getPlayerList().get(i);
-                    printRoundPlayers(player.getPlayerName());
-                    int playerIndex = this.getPlayerIndexOnSession(player);
-
+                    Player player = this.allPlayerListUpdatedOnSession.get(nextPlayerIndex);
+                    nextPlayerIndex = findNextPlayerIndex(nextPlayerIndex);
                     if (player.getPlayerName().equals(alignPlayer.getPlayerName())) break;
 
+                    printRoundPlayers(player.getPlayerName(), smallBlindIndex, bigBlindIndex);
+                    int playerIndex = this.getPlayerIndexOnSession(player);
                     if (player.getPlayerName().equals("Me"))
                         myTurn(round, playerIndex, player, smallBlindIndex, bigBlindIndex, true);
                     else
                         playerTurn(round, playerIndex, player, smallBlindIndex, bigBlindIndex, true);
                 }
                 this.cleanFoldPlayers();  // Dealer清除筹码拉齐阶段内所有弃牌玩家
+                if (this.dealer.getPlayerList() == null) break;  // 所有玩家都弃牌，session结束
+                nextPlayerIndex = findNextPlayerIndex(nextPlayerIndex-1);  // 重试一次，防止最后一个玩家弃牌
             }
 
             // 只剩一个玩家提前进行结算 or 多个玩家进入最终round进入结算
             if (round == Constants.TOTAL_ROUND) round -= 1;
             this.layYourCardsOnTheTable(round, session);
 
-            if (this.playerStacks.get("Me") == 0) {
+            if (this.playerStacks.get("Me") <= 0) {
                 System.out.println("=======【 Game Over 】=======");
                 return;
             } else {
