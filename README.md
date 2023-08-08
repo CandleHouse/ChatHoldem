@@ -21,3 +21,4 @@ src/main/java/org/chat/texasholdem/StartGame.java
 2. 金手指，看所有人的牌
 3. 结算时挑出最大手牌，自动比牌
 4. 自定义玩家个数，你想打几个？
+5. 游戏难度 `EASY`, `NORMAL`

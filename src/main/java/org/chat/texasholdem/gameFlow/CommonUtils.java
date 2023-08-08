@@ -4,7 +4,6 @@ import org.chat.texasholdem.chat.prompt.PlayerMoveHistory;
 import org.chat.texasholdem.judge.entity.Player;
 
 import java.util.List;
-import java.util.Map;
 
 public class CommonUtils {
     public String getBettingRound(int nowRound) {
@@ -47,19 +46,6 @@ public class CommonUtils {
         }
         return maxAmount;
     }
-    public Player getMaxAmountFirstPlayer(List<Player> playerList, Map<String, Integer> playerStacks,
-                                          Map<String, Integer> playerStacksUpdatedOnSession,
-                                          List<PlayerMoveHistory> playerMoveHistoryList) {
-        int maxAmount = this.getMaxAmount(playerMoveHistoryList);
-        for (Player player : playerList) {
-            int playerAmount = playerStacksUpdatedOnSession.get(player.getPlayerName()) -
-                               playerStacks.get(player.getPlayerName());
-            if (playerAmount == maxAmount)
-                return player;
-        }
-
-        return null;
-    }
 
     public Player searchPlayerByName(String playerName, List<Player> playerList) {
         for (Player player : playerList) {
@@ -72,6 +58,7 @@ public class CommonUtils {
     public String getColoredString(String content, int fontColor, int fontType, int backgroundColor){
         return String.format("\033[%d;%d;%dm%s\033[0m", fontColor, fontType, backgroundColor, content);
     }
+
     public String getColoredString(String content, int fontColor, int fontType){
         return String.format("\033[%d;%dm%s\033[0m", fontColor, fontType, content);
     }

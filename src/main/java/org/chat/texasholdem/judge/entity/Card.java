@@ -20,9 +20,9 @@ public class Card implements Comparable<Card> {
         return suit;
     }
 
-    public int getRankNumber() {
-        return this.rank.getNumber();
-    }
+//    public int getRankNumber() {
+//        return this.rank.getNumber();
+//    }
 
     public void setSuit(CardSuitEnum suit) {
         this.suit = suit;

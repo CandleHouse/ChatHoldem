@@ -2,6 +2,8 @@ package org.chat.texasholdem.chat;
 
 import com.alibaba.fastjson.JSONObject;
 import org.chat.HttpUtil.HttpRequest;
+import org.chat.texasholdem.chat.prompt.HoldemPrompt;
+import org.chat.texasholdem.chat.prompt.HoldemPromptZeroShotCoT;
 import org.chat.texasholdem.judge.entity.Constants;
 
 import java.util.HashMap;
@@ -14,12 +16,15 @@ public class ChatHoldem {
     private final static String CHATGLM_PROXY_URL = "https://pre-morrox.alibaba-inc.com/api/proxy/aigc/question?type=chatglm";
     private final static String Cookie = "";
 
-    public JSONObject chatHoldemAction(String holdemPrompt) {
+    /**
+     * 一次询问获得结果
+     */
+    public JSONObject chatHoldemZeroShot(HoldemPrompt holdemPrompt) {
         HashMap<String, String> headers = new HashMap<>();
         headers.put("Cookie", Cookie);
 
         JSONObject jsonBody = new JSONObject();
-        jsonBody.put("text", holdemPrompt);
+        jsonBody.put("text", holdemPrompt.getCombinedPrompt());
 
         JSONObject res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
 
@@ -65,6 +70,44 @@ public class ChatHoldem {
         }
 
         return JSONObject.parseObject(chatHoldemAnsFilter(chatHoldemAns));
+    }
+
+    /**
+     * 一次询问 + chain of thoughts 获得结果
+     */
+    public JSONObject chatHoldemZeroShotCoT(HoldemPrompt holdemPrompt) {
+        HoldemPromptZeroShotCoT holdemPromptZeroShotCoT = new HoldemPromptZeroShotCoT(holdemPrompt);
+        HashMap<String, String> headers = new HashMap<>();
+        headers.put("Cookie", Cookie);
+
+        JSONObject jsonBody = new JSONObject();
+        jsonBody.put("text", holdemPromptZeroShotCoT.firstPrompt());
+
+        JSONObject res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+
+        int retryCount = 0;
+        String chatHoldemAns = null; String secondPrompt = null;
+        while (retryCount++ < Constants.MAX_RETRY_TIMES) {
+            // 请求出错
+            if (res.getInteger("httpCode") != 200) {
+                System.out.println("chatHoldemAns is absent, retrying...");
+                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                continue;
+            }
+            // 请求成功，返回正忙
+            chatHoldemAns = res.getJSONObject("httpResponseBody").getJSONObject("data").getString("chatgpt");
+            if (chatHoldemAns == null) {
+                System.out.println("chatHoldemAns is busy, retrying...");
+                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                continue;
+            }
+            // 请求成功，用结果合成第二次prompt
+            if (chatHoldemAns != null) {
+                holdemPrompt.setCombinedPrompt(holdemPromptZeroShotCoT.secondPrompt(chatHoldemAns));
+            }
+        }
+
+        return chatHoldemZeroShot(holdemPrompt);
     }
 
     /**
