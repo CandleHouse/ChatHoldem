@@ -1,4 +1,4 @@
-package org.chat.texasholdem.chat.prompt;
+package org.chat.texasholdem.chat.entity;
 
 /**
  * Enum {@code GameLevel} 游戏难度.

@@ -1,7 +1,10 @@
 package org.chat.texasholdem.chat;
 
 import com.alibaba.fastjson.JSONObject;
+import org.chat.HttpUtil.API.ChatAPI;
+import org.chat.HttpUtil.API.ChatGLMAPI;
 import org.chat.HttpUtil.HttpRequest;
+import org.chat.texasholdem.chat.entity.ChatCore;
 import org.chat.texasholdem.chat.prompt.HoldemPrompt;
 import org.chat.texasholdem.chat.prompt.HoldemPromptZeroShotCoT;
 import org.chat.texasholdem.judge.entity.Constants;
@@ -11,24 +14,28 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatHoldem {
+    private ChatAPI chatAPI;
 
-    private final static String CHATGPT_PROXY_URL = "https://pre-morrox.alibaba-inc.com/api/proxy/aigc/question?type=chatgpt";
-    private final static String CHATGLM_PROXY_URL = "https://pre-morrox.alibaba-inc.com/api/proxy/aigc/question?type=chatglm";
-    private final static String Cookie = "";
+    public ChatHoldem(ChatCore chatCore) {
+        switch (chatCore) {
+            case ChatGLM:
+                chatAPI = new ChatGLMAPI();
+                break;
+            default:
+                chatAPI = new ChatGLMAPI();
+                break;
+        }
+    }
 
     /**
      * 一次询问获得结果
      */
     public JSONObject chatHoldemZeroShot(HoldemPrompt holdemPrompt, boolean allPromptsPrint) {
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("Cookie", Cookie);
 
-        JSONObject jsonBody = new JSONObject();
-        jsonBody.put("text", holdemPrompt.getCombinedPrompt());
         if (allPromptsPrint)
             System.out.println(holdemPrompt.getCombinedPrompt());
 
-        JSONObject res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+        JSONObject res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
 
         int retryCount = 0;
         String chatHoldemAns = null;
@@ -36,14 +43,20 @@ public class ChatHoldem {
             // 请求出错
             if (res.getInteger("httpCode") != 200) {
                 System.out.println("chatHoldemAns is absent, retrying...");
-                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
                 continue;
             }
             // 请求成功，返回正忙
-            chatHoldemAns = res.getJSONObject("httpResponseBody").getJSONObject("data").getString("chatgpt");
+            try {
+                chatHoldemAns = chatAPI.getContent(res);
+            } catch (Exception e) {
+                System.out.println("chatHoldemAns is wrong, retrying...");
+                res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
+                continue;
+            }
             if (chatHoldemAns == null) {
                 System.out.println("chatHoldemAns is busy, retrying...");
-                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
                 continue;
             }
             // 请求成功，检查返回格式是否为JSON
@@ -56,7 +69,7 @@ public class ChatHoldem {
                 } catch (Exception e) {
                     // 返回格式不是JSON，重试
                     System.out.println("chatHoldemAns is in nonsense, retrying...");
-                    res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                    res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
                     continue;
                 }
             }
@@ -79,13 +92,8 @@ public class ChatHoldem {
      */
     public JSONObject chatHoldemZeroShotCoT(HoldemPrompt holdemPrompt, boolean allPromptsPrint) {
         HoldemPromptZeroShotCoT holdemPromptZeroShotCoT = new HoldemPromptZeroShotCoT(holdemPrompt);
-        HashMap<String, String> headers = new HashMap<>();
-        headers.put("Cookie", Cookie);
 
-        JSONObject jsonBody = new JSONObject();
-        jsonBody.put("text", holdemPromptZeroShotCoT.firstPrompt());
-
-        JSONObject res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+        JSONObject res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
 
         int retryCount = 0;
         String chatHoldemAns = null; String secondPrompt = null;
@@ -93,14 +101,14 @@ public class ChatHoldem {
             // 请求出错
             if (res.getInteger("httpCode") != 200) {
                 System.out.println("chatHoldemAns is absent, retrying...");
-                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
                 continue;
             }
             // 请求成功，返回正忙
-            chatHoldemAns = res.getJSONObject("httpResponseBody").getJSONObject("data").getString("chatgpt");
+            chatHoldemAns = chatAPI.getContent(res);
             if (chatHoldemAns == null || (chatHoldemAns != null && chatHoldemAns.length() < 20)) {
                 System.out.println("chatHoldemAns is busy, retrying...");
-                res = HttpRequest.jsonPost(CHATGPT_PROXY_URL, headers, jsonBody.toJSONString());
+                res = chatAPI.chatAns(holdemPrompt.getCombinedPrompt());
                 continue;
             }
             // 请求成功，用结果合成第二次prompt
@@ -117,6 +125,9 @@ public class ChatHoldem {
      * 过滤非JSON字符串内容
      */
     public String chatHoldemAnsFilter(String chatHoldemAns) {
+        chatHoldemAns = chatHoldemAns.replace("\\\"", "\"");
+        chatHoldemAns = chatHoldemAns.replace("\\n", "\n");
+
         Pattern pattern = Pattern.compile("\\{([^}]*)\\}");
         Matcher matcher = pattern.matcher(chatHoldemAns);
         String filteredChatHoldemAns = "";

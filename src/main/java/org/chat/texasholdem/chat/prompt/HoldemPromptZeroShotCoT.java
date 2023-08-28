@@ -2,6 +2,7 @@ package org.chat.texasholdem.chat.prompt;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.chat.texasholdem.chat.entity.PlayerStatus;
 
 @Getter
 @Setter

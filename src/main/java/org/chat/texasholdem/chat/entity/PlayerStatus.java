@@ -1,6 +1,7 @@
-package org.chat.texasholdem.chat.prompt;
+package org.chat.texasholdem.chat.entity;
 
 import com.alibaba.fastjson.JSONObject;
+import org.chat.texasholdem.chat.entity.PlayerMoveHistory;
 import org.chat.texasholdem.judge.entity.Card;
 
 import java.util.ArrayList;

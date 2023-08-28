@@ -1,6 +1,6 @@
 package org.chat.texasholdem.gameFlow;
 
-import org.chat.texasholdem.chat.prompt.PlayerMoveHistory;
+import org.chat.texasholdem.chat.entity.PlayerMoveHistory;
 import org.chat.texasholdem.judge.entity.Player;
 
 import java.util.List;

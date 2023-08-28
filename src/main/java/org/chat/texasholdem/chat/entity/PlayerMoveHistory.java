@@ -1,4 +1,4 @@
-package org.chat.texasholdem.chat.prompt;
+package org.chat.texasholdem.chat.entity;
 
 import lombok.Data;
 

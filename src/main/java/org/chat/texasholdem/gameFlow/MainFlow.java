@@ -2,10 +2,11 @@ package org.chat.texasholdem.gameFlow;
 
 import com.alibaba.fastjson.JSONObject;
 import org.chat.texasholdem.chat.ChatHoldem;
-import org.chat.texasholdem.chat.prompt.GameLevel;
+import org.chat.texasholdem.chat.entity.ChatCore;
+import org.chat.texasholdem.chat.entity.GameLevel;
 import org.chat.texasholdem.chat.prompt.HoldemPrompt;
-import org.chat.texasholdem.chat.prompt.PlayerMoveHistory;
-import org.chat.texasholdem.chat.prompt.PlayerStatus;
+import org.chat.texasholdem.chat.entity.PlayerMoveHistory;
+import org.chat.texasholdem.chat.entity.PlayerStatus;
 import org.chat.texasholdem.judge.entity.Card;
 import org.chat.texasholdem.judge.entity.Constants;
 import org.chat.texasholdem.judge.entity.Dealer;
@@ -14,6 +15,7 @@ import org.chat.texasholdem.judge.entity.Player;
 import java.util.*;
 
 public class MainFlow {
+    private ChatCore chatCore;
     private int playerNum;
     private int initCounter;
     private int bigBlind;
@@ -30,7 +32,9 @@ public class MainFlow {
     private Dealer dealer;
     private CommonUtils commonUtils = new CommonUtils();
 
-    public MainFlow(int playerNum, boolean goldFinger, GameLevel gameLevel, boolean allPromptsPrint) {
+    public MainFlow(ChatCore chatCore, int playerNum, boolean goldFinger,
+                    GameLevel gameLevel, boolean allPromptsPrint) {
+        this.chatCore = chatCore;
         this.playerNum = playerNum;
         this.goldFinger = goldFinger;
         this.gameLevel = gameLevel;
@@ -42,7 +46,6 @@ public class MainFlow {
         playerStacks = new HashMap<>();
         playerMoveHistoryListUpdatedOnSession = new ArrayList<>();
         foldPlayerNameList = new ArrayList<>();
-
         this.init();
     }
 
@@ -314,7 +317,9 @@ public class MainFlow {
             System.out.println("  剩余筹码：" + playerStackHighlight);
         }
 
-        String playerAction = ""; int playerAmount = -1; JSONObject chatHoldemAns = null;
+        String playerAction = ""; int playerAmount = -1;
+        ChatHoldem chatHoldem = new ChatHoldem(this.chatCore);
+        JSONObject chatHoldemAns = null;
         if (!roundCall) {
             // chatHoldem AI
             PlayerStatus playerStatus = new PlayerStatus(
@@ -329,9 +334,9 @@ public class MainFlow {
                     this.bigBlind, this.smallBlind, playerStatus
             );
             if (GameLevel.EASY.equals(this.gameLevel))
-                chatHoldemAns = new ChatHoldem().chatHoldemZeroShot(prompt, this.allPromptsPrint);
+                chatHoldemAns = chatHoldem.chatHoldemZeroShot(prompt, this.allPromptsPrint);
             else
-                chatHoldemAns = new ChatHoldem().chatHoldemZeroShotCoT(prompt, this.allPromptsPrint);
+                chatHoldemAns = chatHoldem.chatHoldemZeroShotCoT(prompt, this.allPromptsPrint);
 
             if (this.goldFinger) {
                 String reason = (String) chatHoldemAns.get("reason");
